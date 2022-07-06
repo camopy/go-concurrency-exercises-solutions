@@ -13,10 +13,27 @@
 
 package main
 
-func main() {
-	// Create a process
-	proc := MockProcess{}
+import (
+	"os"
+	"os/signal"
+)
 
-	// Run the process (blocking)
-	proc.Run()
+func main() {
+	proc := &MockProcess{}
+	shutdown := make(chan bool)
+	go gracefulShutdown(proc, shutdown)
+	go func() {
+		proc.Run()
+		shutdown <- true
+	}()
+	<-shutdown
+}
+
+func gracefulShutdown(proc *MockProcess, shutdown chan bool) {
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, os.Interrupt)
+	<-sigint
+	go proc.Stop()
+	<-sigint
+	shutdown <- true
 }
